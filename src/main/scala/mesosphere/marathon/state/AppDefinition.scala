@@ -631,10 +631,37 @@ object AppDefinition extends GeneralPurposeCombinators {
     }
 
   private val complyWithResourceRoleRules: Validator[AppDefinition] =
-    isTrue("""Resident apps may not define acceptedResourceRoles other than "*" (unreserved resources)""") { app =>
-      def hasResidencyCompatibleRoles = app.acceptedResourceRoles.fold(true)(_ == Set(ResourceRole.Unreserved))
-      !app.isResident || hasResidencyCompatibleRoles
-    }
+    validator[AppDefinition] { app =>
+      app.acceptedResourceRoles.each is valid(validResourceRoles)
+    } and
+      isTrue("""Resident apps may not define acceptedResourceRoles other than "*" (unreserved resources)""") { app =>
+        def hasResidencyCompatibleRoles = app.acceptedResourceRoles.fold(true)(_ == Set(ResourceRole.Unreserved))
+        !app.isResident || hasResidencyCompatibleRoles
+      }
+
+  private val validResourceRoles: Validator[Set[String]] = validator[Set[String]] { roles =>
+    roles is notEmpty
+    roles.each is valid(validResourceRole)
+  }
+
+  private val validResourceRole: Validator[String] = validator[String] { role =>
+    role is notEmpty
+    role is notEqualTo(".")
+    role is notEqualTo("..")
+    role.startsWith("-") is false
+    role.each is valid(validResourceRoleChar)
+  }
+
+  private val validResourceRoleChar: Validator[Char] = validator[Char] { char =>
+    char is notEqualTo('\u0009')
+    char is notEqualTo('\u000a')
+    char is notEqualTo('\u000b')
+    char is notEqualTo('\u000c')
+    char is notEqualTo('\u000d')
+    char is notEqualTo('\u0020')
+    char is notEqualTo('\u002f')
+    char is notEqualTo('\u007f')
+  }
 
   private val containsCmdArgsOrContainer: Validator[AppDefinition] =
     isTrue("AppDefinition must either contain one of 'cmd' or 'args', and/or a 'container'.") { app =>

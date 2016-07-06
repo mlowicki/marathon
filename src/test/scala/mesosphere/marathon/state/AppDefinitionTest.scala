@@ -1,5 +1,6 @@
 package mesosphere.marathon.state
 
+import mesosphere.marathon.core.plugin.PluginManager
 import mesosphere.marathon.Protos.ServiceDefinition
 import mesosphere.marathon.state.PathId._
 import mesosphere.marathon.state.EnvVarValue._
@@ -310,5 +311,100 @@ class AppDefinitionTest extends MarathonSpec with Matchers {
     proto.getResourcesList.asScala
       .find(_.getName == name)
       .get.getScalar.getValue
+  }
+
+  lazy val validAppDefinition = AppDefinition.validAppDefinition(PluginManager.None)
+
+  test(""""Missing `acceptedResourceRoles` should be valid.""") {
+    val app = AppDefinition(cmd = Some("sleep 1000"))
+    validAppDefinition(app).isSuccess shouldBe true
+  }
+
+  test(""""`"acceptedResourceRoles": ["*"]` should be valid.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set("*"))
+    )
+    validAppDefinition(app).isSuccess shouldBe true
+  }
+
+  test("""`"acceptedResourceRoles": ["foo"]` should be valid.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set("foo"))
+    )
+    validAppDefinition(app).isSuccess shouldBe true
+  }
+
+  test("""`"acceptedResourceRoles": ["foo", "bar"]` should be valid.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set("foo", "bar"))
+    )
+    validAppDefinition(app).isSuccess shouldBe true
+  }
+
+  test("""`"acceptedResourceRoles": []` should be invalid.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set.empty)
+    )
+    validAppDefinition(app).isSuccess shouldBe false
+  }
+
+  test("""`"acceptedResourceRoles": [""]` should be invalid.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set(""))
+    )
+    validAppDefinition(app).isSuccess shouldBe false
+  }
+
+  test("""`"acceptedResourceRoles": ["."]` should be invalid.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set("."))
+    )
+    validAppDefinition(app).isSuccess shouldBe false
+  }
+
+  test("""`"acceptedResourceRoles": [".."]` should be invalid.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set(".."))
+    )
+    validAppDefinition(app).isSuccess shouldBe false
+  }
+
+  test("""`"acceptedResourceRoles": ["-foo"]` should be invalid because it starts with a dash.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set("-foo"))
+    )
+    validAppDefinition(app).isSuccess shouldBe false
+  }
+
+  test("""`"acceptedResourceRoles": [" "]` should be invalid due to invalid characters.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set(" "))
+    )
+    validAppDefinition(app).isSuccess shouldBe false
+  }
+
+  test("""`"acceptedResourceRoles": ["foo\nbar"]` should be invalid due to invalid characters.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set("foo\nbar"))
+    )
+    validAppDefinition(app).isSuccess shouldBe false
+  }
+
+  test("""`"acceptedResourceRoles": ["foo", "bar\t", "baz"]` should be invalid due to invalid characters.""") {
+    val app = AppDefinition(
+      cmd = Some("sleep 1000"),
+      acceptedResourceRoles = Some(Set("foo", "bar\t", "baz"))
+    )
+    validAppDefinition(app).isSuccess shouldBe false
   }
 }
