@@ -18,6 +18,7 @@ import mesosphere.marathon.Protos.MarathonTask
 import mesosphere.marathon.core.election.ElectionService
 import mesosphere.marathon.core.launchqueue.LaunchQueue
 import mesosphere.marathon.core.readiness.ReadinessCheckExecutor
+import mesosphere.marathon.core.storage.PersistenceStore
 import mesosphere.marathon.core.task.tracker.TaskTracker
 import mesosphere.marathon.event.http._
 import mesosphere.marathon.event.{ EventModule, HistoryActor }
@@ -346,7 +347,7 @@ class MarathonModule(conf: MarathonConf, http: HttpConf)
   @Provides
   @Singleton
   def provideAppRepository(
-    @Named(ModuleNames.STORE_APP) store: EntityStore[AppDefinition],
+    store: PersistenceStore[_, _],
     metrics: Metrics): AppRepository = {
     new AppRepository(store, maxVersions = conf.zooKeeperMaxVersions.get, metrics)
   }

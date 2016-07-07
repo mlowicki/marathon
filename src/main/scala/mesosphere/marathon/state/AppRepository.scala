@@ -1,7 +1,10 @@
 package mesosphere.marathon.state
 
+import akka.NotUsed
+import akka.stream.scaladsl.Source
 import mesosphere.marathon.metrics.Metrics
 import scala.concurrent.Future
+import mesosphere.marathon.core.storage.PersistenceStore
 
 /**
   * This responsibility is in transit:
@@ -16,14 +19,14 @@ import scala.concurrent.Future
   *
   * Until this plan is implemented, please think carefully when to use the app repository!
   */
-class AppRepository(
-  val store: EntityStore[AppDefinition],
-  val maxVersions: Option[Int] = None,
-  val metrics: Metrics)
-    extends EntityRepository[AppDefinition] {
+class AppRepository(val store: PersistenceStore[_, _],
+                     val maxVersions: Option[Int] = None,
+                     val metrics: Metrics) {
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  def allPathIds(): Future[Iterable[PathId]] = allIds().map(_.map(PathId.fromSafePath))
+  def allPathIds(): Source[PathId, NotUsed] = store.ids[AppPathId, AppDefinition](AppPathId.root).flatMapConcat(path =>
+    store.ids[AppPathId, AppDefinition](path).map(_.pathId)
+  )
 
   def currentVersion(appId: PathId): Future[Option[AppDefinition]] = currentVersion(appId.safePath)
   def listVersions(appId: PathId): Future[Iterable[Timestamp]] = listVersions(appId.safePath)
